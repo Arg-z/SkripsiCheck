@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SkripsiCheck membantu mahasiswa meninjau kemiripan teks secara lokal dan transparan.">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>SkripsiCheck — Pemeriksa Kemiripan Teks</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Langsung ke konten utama</a>
+
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="SkripsiCheck, halaman utama">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" role="img">
+          <path d="M9 5.5h10.5L25 11v15.5H9z"></path>
+          <path class="brand-fold" d="M19.5 5.5V11H25"></path>
+          <path class="brand-check" d="m12.5 18 2.5 2.5 5-6"></path>
+        </svg>
+      </span>
+      <span>Skripsi<span>Check</span></span>
+    </a>
+    <nav class="header-actions" aria-label="Navigasi utama">
+      <button class="text-button" id="sources-nav-button" type="button">Sumber lokal</button>
+      <a class="button button-quiet button-small" href="/docs" target="_blank" rel="noopener">Dokumentasi API</a>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> Analisis lokal untuk mahasiswa</p>
+        <h1 id="hero-title">Temukan kemiripan teks.<br><em>Tinjau dengan konteks.</em></h1>
+        <p class="hero-lead">Bandingkan naskah dengan koleksi sumber lokal menggunakan pencocokan kata, frasa, dan makna—tanpa API analisis pihak ketiga.</p>
+        <div class="trust-row" aria-label="Karakteristik layanan">
+          <span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5 16 5v4.6c0 3.8-2.5 6.4-6 7.9-3.5-1.5-6-4.1-6-7.9V5z"></path><path d="m7 10 2 2 4-4"></path></svg>
+            Proses lokal
+          </span>
+          <span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"></circle><path d="M10 6v4l2.5 1.5"></path></svg>
+            Tiga metode
+          </span>
+          <span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3.5h8l3 3V17H5z"></path><path d="M13 3.5v3h3M8 10h5M8 13h5"></path></svg>
+            Laporan transparan
+          </span>
+        </div>
+      </div>
+      <aside class="hero-note" aria-label="Catatan penting">
+        <span class="note-number">01</span>
+        <p>SkripsiCheck mengukur <strong>similarity</strong>, bukan memberikan vonis plagiarisme.</p>
+        <p class="note-caption">Setiap temuan perlu ditinjau manual sesuai standar sitasi akademik.</p>
+      </aside>
+    </section>
+
+    <section class="workspace" id="workspace" aria-labelledby="workspace-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-number">01 / MULAI</p>
+          <h2 id="workspace-title">Periksa dokumen</h2>
+        </div>
+        <p>PDF, DOCX, atau TXT · batas server default 25 MB</p>
+      </div>
+
+      <div class="workspace-grid">
+        <section class="upload-panel panel" aria-labelledby="upload-title">
+          <div class="panel-heading">
+            <div class="icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4h14v-4"></path></svg>
+            </div>
+            <div>
+              <h3 id="upload-title">Dokumen utama</h3>
+              <p>Pilih naskah yang ingin dibandingkan.</p>
+            </div>
+          </div>
+
+          <label class="drop-zone" id="drop-zone" for="file-input">
+            <input id="file-input" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+            <span class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 15V5m0 0L8.5 8.5M12 5l3.5 3.5"></path><path d="M5 14.5v4h14v-4"></path></svg>
+            </span>
+            <strong>Tarik dokumen ke sini</strong>
+            <span>atau <u>pilih dari perangkat</u></span>
+            <small>Dokumen tetap berada di server SkripsiCheck yang Anda jalankan.</small>
+          </label>
+
+          <div class="file-card" id="file-card" hidden>
+            <span class="file-type" id="file-type">TXT</span>
+            <span class="file-meta">
+              <strong id="file-name"></strong>
+              <small id="file-size"></small>
+            </span>
+            <button class="icon-button" id="remove-file-button" type="button" aria-label="Hapus dokumen yang dipilih">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"></path></svg>
+            </button>
+          </div>
+
+          <details class="analysis-settings">
+            <summary>Pengaturan analisis</summary>
+            <div class="settings-grid">
+              <label>
+                Kandidat per paragraf
+                <select id="top-k-input">
+                  <option value="3">3 kandidat</option>
+                  <option value="5" selected>5 kandidat</option>
+                  <option value="10">10 kandidat</option>
+                  <option value="20">20 kandidat</option>
+                </select>
+              </label>
+              <label>
+                Ambang laporan: <output id="min-score-output" for="min-score-input">40%</output>
+                <input id="min-score-input" type="range" min="0" max="80" step="5" value="40">
+              </label>
+            </div>
+          </details>
+
+          <button class="button button-primary button-wide" id="analyze-button" type="button" disabled>
+            <span>Analisis dokumen</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12m-4-4 4 4-4 4"></path></svg>
+          </button>
+
+          <div class="process-status" id="process-status" hidden aria-live="polite">
+            <ol>
+              <li id="step-upload"><span>1</span><div><strong>Mengunggah dokumen</strong><small>Validasi dan ekstraksi aman</small></div></li>
+              <li id="step-analyze"><span>2</span><div><strong>Menganalisis paragraf</strong><small>Pencarian lexical, semantic, dan n-gram</small></div></li>
+              <li id="step-report"><span>3</span><div><strong>Menyiapkan laporan</strong><small>Menyusun hasil yang dapat ditinjau</small></div></li>
+            </ol>
+          </div>
+
+          <p class="inline-message" id="upload-message" role="status" aria-live="polite"></p>
+        </section>
+
+        <aside class="source-panel panel" id="source-panel" aria-labelledby="sources-title">
+          <div class="panel-heading">
+            <div class="icon-box icon-box-warm" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3.5 6.5h7l2 2h8v10h-17z"></path><path d="M8 13.5h8M12 10v7"></path></svg>
+            </div>
+            <div>
+              <h3 id="sources-title">Koleksi sumber</h3>
+              <p>Dokumen pembanding yang sudah di-index.</p>
+            </div>
+          </div>
+
+          <div class="index-card">
+            <div class="index-visual" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div>
+              <strong>Index FAISS lokal</strong>
+              <p>Analisis memakai index yang dibuat melalui CLI.</p>
+            </div>
+          </div>
+
+          <div class="source-actions">
+            <button class="button button-secondary" id="add-sources-button" type="button">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h5l1.5 2h6.5v8h-13zM10 10v4M8 12h4"></path></svg>
+              Tambah sumber
+            </button>
+            <button class="button button-secondary" id="rebuild-button" type="button">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 7A6 6 0 1 0 16 12"></path><path d="M15.5 3.5V7H12"></path></svg>
+              Rebuild index
+            </button>
+          </div>
+
+          <div class="source-notice" id="source-notice" role="status" hidden>
+            <strong>Pengelolaan sumber via web belum tersedia.</strong>
+            <p>Untuk saat ini jalankan <code>skripsicheck index ./references</code> di terminal, lalu mulai ulang server bila index berubah.</p>
+          </div>
+
+          <div class="privacy-note">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 8V6a3.5 3.5 0 0 1 7 0v2M5 8h10v8.5H5z"></path></svg>
+            <div><strong>Privasi sebagai default</strong><p>Sumber, embedding, dan index tidak dikirim ke API eksternal.</p></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="report-section" id="report-section" aria-labelledby="report-title" hidden>
+      <div class="section-heading report-heading">
+        <div>
+          <p class="section-number">02 / LAPORAN</p>
+          <h2 id="report-title">Hasil analisis</h2>
+          <p class="report-filename" id="report-filename"></p>
+        </div>
+        <div class="report-actions">
+          <button class="button button-quiet button-small" id="export-json-button" type="button" disabled>Export JSON</button>
+          <button class="button button-quiet button-small" id="export-html-button" type="button" disabled>Export HTML</button>
+          <button class="button button-danger-quiet button-small" id="delete-document-button" type="button">Hapus dokumen</button>
+        </div>
+      </div>
+
+      <div class="report-overview">
+        <article class="score-card">
+          <div class="score-ring" id="score-ring" aria-label="Overall similarity 0 persen">
+            <div><strong id="overall-score">0%</strong><span>overall<br>similarity</span></div>
+          </div>
+          <div class="score-copy">
+            <span class="risk-badge" id="overall-risk">LOW</span>
+            <h3>Bagian yang perlu ditinjau</h3>
+            <p id="score-description">Hasil menggabungkan tiga sinyal kemiripan, bukan vonis plagiarisme.</p>
+          </div>
+        </article>
+
+        <div class="summary-grid" aria-label="Ringkasan tingkat kemiripan">
+          <button class="summary-stat summary-very-high" type="button" data-summary-filter="VERY HIGH"><span id="count-very-high">0</span><small>Very High</small></button>
+          <button class="summary-stat summary-high" type="button" data-summary-filter="HIGH"><span id="count-high">0</span><small>High</small></button>
+          <button class="summary-stat summary-moderate" type="button" data-summary-filter="MODERATE"><span id="count-moderate">0</span><small>Moderate</small></button>
+          <button class="summary-stat summary-low" type="button" data-summary-filter="LOW"><span id="count-low">0</span><small>Low</small></button>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <article class="report-panel top-sources-panel">
+          <div class="report-panel-heading"><h3>Top sources</h3><span>Kontribusi terdeteksi</span></div>
+          <ol class="source-ranking" id="top-sources-list"></ol>
+        </article>
+        <article class="report-panel methodology-panel">
+          <div class="report-panel-heading"><h3>Cara menghitung</h3><span>Bobot transparan</span></div>
+          <div class="weight-bars" id="weight-bars"></div>
+          <p id="methodology-text"></p>
+        </article>
+      </div>
+
+      <div class="details-heading">
+        <div><p class="section-number">TEMUAN PER PARAGRAF</p><h3>Detail kemiripan</h3></div>
+        <div class="filter-group" id="risk-filters" aria-label="Filter tingkat kemiripan">
+          <button type="button" class="filter-button active" data-risk-filter="ALL" aria-pressed="true">All <span id="filter-count-all">0</span></button>
+          <button type="button" class="filter-button" data-risk-filter="VERY HIGH" aria-pressed="false">Very High <span id="filter-count-very-high">0</span></button>
+          <button type="button" class="filter-button" data-risk-filter="HIGH" aria-pressed="false">High <span id="filter-count-high">0</span></button>
+          <button type="button" class="filter-button" data-risk-filter="MODERATE" aria-pressed="false">Moderate <span id="filter-count-moderate">0</span></button>
+          <button type="button" class="filter-button" data-risk-filter="LOW" aria-pressed="false">Low <span id="filter-count-low">0</span></button>
+        </div>
+      </div>
+
+      <div class="paragraph-list" id="paragraph-list"></div>
+      <p class="empty-filter" id="empty-filter" hidden>Tidak ada paragraf pada kategori ini.</p>
+
+      <div class="disclaimer" role="note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v6M12 7h.01"></path></svg>
+        <div><strong>Interpretasikan dengan hati-hati</strong><p id="disclaimer-text"></p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="brand brand-footer"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 5.5h10.5L25 11v15.5H9z"></path><path class="brand-fold" d="M19.5 5.5V11H25"></path><path class="brand-check" d="m12.5 18 2.5 2.5 5-6"></path></svg></span><span>Skripsi<span>Check</span></span></div>
+    <p>Open-source · Local-first · Dibuat untuk membantu peninjauan akademik.</p>
+    <a href="https://github.com/Arg-z/SkripsiCheck" target="_blank" rel="noopener">GitHub</a>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p class="noscript-message">Aktifkan JavaScript untuk menggunakan antarmuka SkripsiCheck. API tetap tersedia di <a href="/docs">/docs</a>.</p></noscript>
+</body>
+</html>

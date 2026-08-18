@@ -57,7 +57,7 @@ def upload_txt(client: TestClient, text: str, filename: str = "skripsi.txt") -> 
 def test_health_and_security_headers(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "0.1.0", "phase": 4}
+    assert response.json() == {"status": "ok", "version": "0.1.0", "phase": 5}
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
@@ -156,4 +156,3 @@ def test_delete_document_removes_metadata_and_file(client: TestClient) -> None:
     response = client.delete(f"/api/documents/{uploaded['id']}")
     assert response.status_code == 204
     assert client.get(f"/api/documents/{uploaded['id']}").status_code == 404
-

@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for SkripsiCheck PHASE 4."""
+"""FastAPI application entrypoint for SkripsiCheck."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api import analysis, documents, reports
@@ -14,6 +16,11 @@ from app.config import SETTINGS, Settings
 from app.models.schemas import HealthResponse
 from app.services.container import AppContainer, build_container
 from app.services.similarity_engine import CandidateRetriever
+
+
+APP_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = APP_DIR / "templates"
+STATIC_DIR = APP_DIR.parent / "static"
 
 
 def create_app(
@@ -47,6 +54,13 @@ def create_app(
     application.include_router(documents.router)
     application.include_router(analysis.router)
     application.include_router(reports.router)
+    application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @application.get("/", include_in_schema=False)
+    def home() -> FileResponse:
+        """Serve the dependency-free browser interface."""
+
+        return FileResponse(TEMPLATE_DIR / "index.html", media_type="text/html")
 
     @application.middleware("http")
     async def security_headers(
@@ -63,7 +77,7 @@ def create_app(
 
     @application.get("/health", response_model=HealthResponse, tags=["system"])
     def health() -> HealthResponse:
-        return HealthResponse(status="ok", version=__version__, phase=4)
+        return HealthResponse(status="ok", version=__version__, phase=5)
 
     return application
 

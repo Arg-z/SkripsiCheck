@@ -5,13 +5,14 @@ kemiripan teks terhadap koleksi sumber milik sendiri. Seluruh ekstraksi,
 embedding, indexing, dan pencarian dilakukan lokal tanpa API berbayar dan tanpa
 mengunggah dokumen pengguna ke layanan eksternal.
 
-> **Status:** pengembangan v0.1.0 — PHASE 1 sampai PHASE 4 selesai.
-> FastAPI, upload API, analysis API, report JSON, dan SQLite lokal tersedia.
-> Antarmuka web PHASE 5 dan storage production untuk Vercel belum tersedia.
+> **Status:** pengembangan v0.1.0 — PHASE 1 sampai PHASE 5 selesai.
+> FastAPI, upload/analysis API, report JSON, SQLite lokal, dan antarmuka web
+> tersedia. Storage production untuk deployment serverless belum tersedia.
 
 ## Screenshot
 
-_Screenshot placeholder — antarmuka web akan ditambahkan setelah PHASE 5._
+_Screenshot placeholder — tangkapan antarmuka PHASE 5 akan ditambahkan sebelum
+rilis publik v0.1.0._
 
 ## Features
 
@@ -30,11 +31,14 @@ _Screenshot placeholder — antarmuka web akan ditambahkan setelah PHASE 5._
 - combined score transparan dan deduplikasi hasil sumber;
 - FastAPI dengan upload PDF/DOCX/TXT yang divalidasi;
 - persisted analysis report melalui SQLite dan JSON API;
-- penghapusan dokumen lokal melalui API.
+- penghapusan dokumen lokal melalui API;
+- antarmuka web responsif untuk upload, analisis, dan report;
+- filter risiko, highlight overlap, top sources, serta penjelasan bobot; dan
+- export report HTML/JSON langsung dari browser.
 
 ## Installation
 
-Gunakan Python 3.11 atau lebih baru. Untuk PHASE 1–4:
+Gunakan Python 3.11 atau lebih baru. Untuk PHASE 1–5:
 
 ```bash
 python -m venv .venv
@@ -189,7 +193,7 @@ tersedia**. Pemeriksaan dokumen pada PHASE 4 dilakukan melalui API:
 skripsicheck check ./sample_documents/example.docx
 ```
 
-## FastAPI (PHASE 4)
+## FastAPI dan Web Interface (PHASE 4–5)
 
 Bangun source index terlebih dahulu, lalu jalankan API lokal:
 
@@ -198,7 +202,17 @@ skripsicheck index .\sample_documents\references
 uvicorn app.main:app --reload
 ```
 
-Buka dokumentasi interaktif di `http://127.0.0.1:8000/docs`. Alur API:
+Buka antarmuka mahasiswa di `http://127.0.0.1:8000/` atau dokumentasi
+interaktif di `http://127.0.0.1:8000/docs`. Dari halaman utama, pilih dokumen
+dan tekan **Analisis dokumen**; upload, analisis, serta pengambilan report akan
+dijalankan berurutan.
+
+Report web menampilkan overall similarity, ringkasan kategori, top sources,
+bobot metode, detail setiap paragraf, highlight overlap, dan filter All/Very
+High/High/Moderate/Low. Tombol Export JSON dan Export HTML bekerja di browser.
+Data dari dokumen dirender sebagai text node, bukan HTML mentah.
+
+Alur API yang digunakan frontend:
 
 ```text
 POST /api/documents
@@ -217,9 +231,13 @@ DELETE /api/documents/{document_id}
 
 Upload divalidasi berdasarkan extension, MIME type, signature/container, dan
 batas ukuran. Nama file untuk storage dibuat dari UUID sehingga input pengguna
-tidak pernah menjadi path filesystem. API belum memiliki frontend atau
-authentication; jangan mengeksposnya langsung ke internet sebelum PHASE 5 dan
-deployment hardening selesai.
+tidak pernah menjadi path filesystem. Pengelolaan sumber melalui web belum
+tersedia; gunakan CLI `skripsicheck index` atau `rebuild-index`.
+
+> **Peringatan deployment:** mode saat ini memakai file lokal dan SQLite serta
+> belum memiliki authentication, ownership, rate limiting, atau retention
+> otomatis. Jangan mengekspos endpoint ini langsung ke internet sebelum storage
+> persisten dan deployment hardening selesai.
 
 ## Configuration
 
@@ -264,13 +282,19 @@ pytest -m slow
 
 ## Privacy
 
-- Dokumen, teks, embedding, metadata, dan FAISS index tetap lokal.
-- SkripsiCheck tidak mengirim dokumen ke API atau layanan analisis eksternal.
+- Saat dijalankan lokal, dokumen, teks, embedding, metadata, dan FAISS index
+  tetap di komputer yang menjalankan SkripsiCheck.
+- SkripsiCheck tidak memakai API atau layanan analisis eksternal.
 - Koneksi internet hanya diperlukan untuk mengunduh paket/model pertama kali.
 - Folder data, uploads, reports, indexes, database, model, dan cache diabaikan Git.
 - Upload lokal disimpan sampai endpoint delete dipanggil; deployment production
   nantinya akan memakai retensi dan penghapusan otomatis.
 - Jangan commit dokumen mahasiswa atau sumber berlisensi tanpa izin.
+
+Jika SkripsiCheck di-host, dokumen tentu dikirim ke server hosting milik operator
+aplikasi. Operator wajib menjelaskan lokasi penyimpanan, masa retensi, akses,
+dan kebijakan penghapusan kepada pengguna. Klaim "tetap lokal" hanya berlaku
+untuk instalasi lokal, bukan deployment internet.
 
 ## Limitations
 
