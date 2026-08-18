@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skripsicheck"
+version = "0.1.0"
+description = "Local-first multilingual text similarity analysis for students"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "PyMuPDF>=1.24,<2",
+    "python-docx>=1.1,<2",
+    "scikit-learn>=1.5,<2",
+    "numpy>=1.26,<3",
+    "sentence-transformers>=3.0,<6",
+    "faiss-cpu>=1.8,<2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+skripsicheck = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

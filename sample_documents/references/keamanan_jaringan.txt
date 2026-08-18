@@ -1,0 +1,3 @@
+Keamanan jaringan komputer melindungi data digital dari akses tanpa izin. Enkripsi mengubah informasi menjadi bentuk yang hanya dapat dibaca dengan kunci yang sesuai.
+
+Administrator memantau lalu lintas jaringan untuk mendeteksi aktivitas yang mencurigakan.

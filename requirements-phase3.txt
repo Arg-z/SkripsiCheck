@@ -1,0 +1,4 @@
+-r requirements-phase1-2.txt
+sentence-transformers>=3.0,<6
+faiss-cpu>=1.8,<2
+

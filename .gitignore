@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local configuration and generated data
+.env
+data/
+# Explicitly document the generated FAISS index location.
+data/index/
+uploads/
+reports/
+indexes/
+*.db
+*.sqlite
+*.sqlite3
+
+# Documents are private by default; keep only explicit fixtures/placeholders.
+sample_documents/*
+!sample_documents/.gitkeep
+!sample_documents/example.txt
+!sample_documents/references/
+!sample_documents/references/*.txt
+tests/fixtures/generated/
+
+# Downloaded machine-learning models
+models/
+.cache/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
