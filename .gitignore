@@ -31,7 +31,7 @@ sample_documents/*
 tests/fixtures/generated/
 
 # Downloaded machine-learning models
-models/
+/models/
 .cache/
 
 # Editors and OS

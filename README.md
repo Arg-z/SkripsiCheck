@@ -5,8 +5,9 @@ kemiripan teks terhadap koleksi sumber milik sendiri. Seluruh ekstraksi,
 embedding, indexing, dan pencarian dilakukan lokal tanpa API berbayar dan tanpa
 mengunggah dokumen pengguna ke layanan eksternal.
 
-> **Status:** pengembangan v0.1.0 — PHASE 1, PHASE 2, dan PHASE 3 selesai.
-> FastAPI, SQLite, upload web, dan report merupakan PHASE 4–6 dan belum tersedia.
+> **Status:** pengembangan v0.1.0 — PHASE 1 sampai PHASE 4 selesai.
+> FastAPI, upload API, analysis API, report JSON, dan SQLite lokal tersedia.
+> Antarmuka web PHASE 5 dan storage production untuk Vercel belum tersedia.
 
 ## Screenshot
 
@@ -26,11 +27,14 @@ _Screenshot placeholder — antarmuka web akan ditambahkan setelah PHASE 5._
 - persistence index, metadata chunk, index info, serta fingerprint SHA-256 sumber;
 - candidate retrieval sebelum lexical/ngram scoring sehingga seluruh corpus tidak
   dibandingkan secara lexical;
-- combined score transparan dan deduplikasi hasil sumber.
+- combined score transparan dan deduplikasi hasil sumber;
+- FastAPI dengan upload PDF/DOCX/TXT yang divalidasi;
+- persisted analysis report melalui SQLite dan JSON API;
+- penghapusan dokumen lokal melalui API.
 
 ## Installation
 
-Gunakan Python 3.11 atau lebih baru. Untuk PHASE 1–3:
+Gunakan Python 3.11 atau lebih baru. Untuk PHASE 1–4:
 
 ```bash
 python -m venv .venv
@@ -38,7 +42,7 @@ python -m venv .venv
 # Windows PowerShell
 .venv\Scripts\Activate.ps1
 
-python -m pip install -r requirements-phase3.txt
+python -m pip install -r requirements-phase4.txt
 python -m pip install -e . --no-deps
 pytest -m "not slow"
 ```
@@ -178,12 +182,44 @@ Script mengekstrak sample document, membangun index sumber, mencari candidate
 untuk setiap paragraph, lalu menampilkan lexical, semantic, n-gram, combined
 score, kategori, dan alasan.
 
-Perintah pemeriksaan dokumen final berikut disiapkan untuk PHASE 6 dan **belum
-tersedia** pada PHASE 3:
+Perintah CLI pemeriksaan dokumen berikut disiapkan untuk PHASE 6 dan **belum
+tersedia**. Pemeriksaan dokumen pada PHASE 4 dilakukan melalui API:
 
 ```bash
 skripsicheck check ./sample_documents/example.docx
 ```
+
+## FastAPI (PHASE 4)
+
+Bangun source index terlebih dahulu, lalu jalankan API lokal:
+
+```powershell
+skripsicheck index .\sample_documents\references
+uvicorn app.main:app --reload
+```
+
+Buka dokumentasi interaktif di `http://127.0.0.1:8000/docs`. Alur API:
+
+```text
+POST /api/documents
+    -> upload PDF/DOCX/TXT dan menerima document id
+
+POST /api/analyses
+    -> body: {"document_id": "..."}
+    -> menjalankan candidate retrieval + combined scoring
+
+GET /api/reports/{analysis_id}
+    -> mengambil similarity report JSON yang tersimpan
+
+DELETE /api/documents/{document_id}
+    -> menghapus file dan metadata/analisis terkait
+```
+
+Upload divalidasi berdasarkan extension, MIME type, signature/container, dan
+batas ukuran. Nama file untuk storage dibuat dari UUID sehingga input pengguna
+tidak pernah menjadi path filesystem. API belum memiliki frontend atau
+authentication; jangan mengeksposnya langsung ke internet sebelum PHASE 5 dan
+deployment hardening selesai.
 
 ## Configuration
 
@@ -196,6 +232,8 @@ SKRIPSICHECK_DEVICE=cpu
 SKRIPSICHECK_MIN_SEMANTIC_SCORE=0.40
 SKRIPSICHECK_TOP_K_MATCHES=5
 SKRIPSICHECK_INDEX_DIR=data/index
+SKRIPSICHECK_UPLOAD_DIR=data/uploads
+SKRIPSICHECK_DATABASE_URL=sqlite:///data/skripsicheck.sqlite3
 ```
 
 CPU adalah default dan GPU/CUDA tidak diwajibkan.
@@ -230,6 +268,8 @@ pytest -m slow
 - SkripsiCheck tidak mengirim dokumen ke API atau layanan analisis eksternal.
 - Koneksi internet hanya diperlukan untuk mengunduh paket/model pertama kali.
 - Folder data, uploads, reports, indexes, database, model, dan cache diabaikan Git.
+- Upload lokal disimpan sampai endpoint delete dipanggil; deployment production
+  nantinya akan memakai retensi dan penghapusan otomatis.
 - Jangan commit dokumen mahasiswa atau sumber berlisensi tanpa izin.
 
 ## Limitations

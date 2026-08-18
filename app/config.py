@@ -38,6 +38,10 @@ class Settings:
     embedding_batch_size: int = _env_int("EMBEDDING_BATCH_SIZE", 32)
     device: str = os.getenv("SKRIPSICHECK_DEVICE", "cpu")
     index_dir: Path = Path(os.getenv("SKRIPSICHECK_INDEX_DIR", "data/index"))
+    upload_dir: Path = Path(os.getenv("SKRIPSICHECK_UPLOAD_DIR", "data/uploads"))
+    database_url: str = os.getenv(
+        "SKRIPSICHECK_DATABASE_URL", "sqlite:///data/skripsicheck.sqlite3"
+    )
 
     def validate(self) -> None:
         weights = (self.lexical_weight, self.semantic_weight, self.ngram_weight)
@@ -53,6 +57,8 @@ class Settings:
             raise ValueError("Limits and top-k values must be positive.")
         if not self.device.strip():
             raise ValueError("Embedding device cannot be empty.")
+        if not self.database_url.strip():
+            raise ValueError("Database URL cannot be empty.")
 
 
 SETTINGS = Settings()
@@ -70,3 +76,5 @@ MAX_UPLOAD_MB = SETTINGS.max_upload_mb
 EMBEDDING_BATCH_SIZE = SETTINGS.embedding_batch_size
 DEVICE = SETTINGS.device
 INDEX_DIR = SETTINGS.index_dir
+UPLOAD_DIR = SETTINGS.upload_dir
+DATABASE_URL = SETTINGS.database_url
