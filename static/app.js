@@ -1,8 +1,11 @@
 "use strict";
 
 (() => {
-  const MAX_FILE_BYTES = 25 * 1024 * 1024;
+  const DEFAULT_MAX_FILE_BYTES = 25 * 1024 * 1024;
+  const ACCESS_TOKEN_STORAGE_KEY = "skripsicheck.access-token";
+  const SESSION_ID_STORAGE_KEY = "skripsicheck.session-id";
   const ALLOWED_EXTENSIONS = new Set(["pdf", "docx", "txt"]);
+  const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const RISK_ORDER = ["VERY HIGH", "HIGH", "MODERATE", "LOW"];
   const state = {
     file: null,
@@ -10,6 +13,15 @@
     report: null,
     busy: false,
     toastTimer: null,
+    runtimeReady: false,
+    runtimeError: false,
+    runtime: {
+      accessRequired: false,
+      directUpload: false,
+      maxFileBytes: DEFAULT_MAX_FILE_BYTES,
+    },
+    accessToken: "",
+    sessionId: null,
   };
 
   const byId = (id) => document.getElementById(id);
@@ -33,6 +45,11 @@
     exportHtml: byId("export-html-button"),
     deleteDocument: byId("delete-document-button"),
     toast: byId("toast"),
+    accessPanel: byId("access-panel"),
+    accessTokenInput: byId("access-token-input"),
+    saveAccess: byId("save-access-button"),
+    uploadLimitLabel: byId("upload-limit-label"),
+    uploadPrivacyCopy: byId("upload-privacy-copy"),
   };
 
   function makeElement(tag, className, text) {
@@ -68,6 +85,73 @@
   function fileExtension(filename) {
     const parts = String(filename).split(".");
     return parts.length > 1 ? parts.pop().toLowerCase() : "";
+  }
+
+  function isUuidV4(value) {
+    return typeof value === "string" && UUID_V4_PATTERN.test(value);
+  }
+
+  function readSessionValue(key) {
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function writeSessionValue(key, value) {
+    try {
+      window.sessionStorage.setItem(key, value);
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function removeSessionValue(key) {
+    try {
+      window.sessionStorage.removeItem(key);
+    } catch (_error) {
+      // A browser may disable session storage. There is no persistent fallback.
+    }
+  }
+
+  function validAccessToken(value) {
+    return typeof value === "string" && value.length >= 32 && value.length <= 512;
+  }
+
+  function ensureSessionId() {
+    if (isUuidV4(state.sessionId)) return state.sessionId.toLowerCase();
+    const stored = readSessionValue(SESSION_ID_STORAGE_KEY);
+    if (isUuidV4(stored)) {
+      state.sessionId = stored.toLowerCase();
+      return state.sessionId;
+    }
+    if (!window.crypto || typeof window.crypto.randomUUID !== "function") {
+      throw new Error("Browser ini tidak mendukung ID sesi yang aman. Gunakan browser versi terbaru.");
+    }
+    const generated = window.crypto.randomUUID().toLowerCase();
+    if (!writeSessionValue(SESSION_ID_STORAGE_KEY, generated)) {
+      throw new Error("Penyimpanan sesi browser tidak tersedia. Izinkan session storage lalu coba lagi.");
+    }
+    state.sessionId = generated;
+    return generated;
+  }
+
+  function accessIsReady() {
+    return !state.runtime.accessRequired || (
+      validAccessToken(state.accessToken) && isUuidV4(state.sessionId)
+    );
+  }
+
+  function updateAnalyzeAvailability() {
+    elements.analyze.disabled = (
+      state.busy
+      || !state.file
+      || !state.runtimeReady
+      || state.runtimeError
+      || !accessIsReady()
+    );
   }
 
   function riskFromScore(value) {
@@ -114,7 +198,9 @@
     const extension = fileExtension(file.name);
     if (!ALLOWED_EXTENSIONS.has(extension)) return "Format tidak didukung. Pilih PDF, DOCX, atau TXT.";
     if (file.size === 0) return "Dokumen kosong tidak dapat dianalisis.";
-    if (file.size > MAX_FILE_BYTES) return "Ukuran dokumen melebihi batas server default 25 MB.";
+    if (file.size > state.runtime.maxFileBytes) {
+      return `Ukuran dokumen melebihi batas ${formatBytes(state.runtime.maxFileBytes)}.`;
+    }
     return null;
   }
 
@@ -124,7 +210,7 @@
       state.file = null;
       elements.fileInput.value = "";
       elements.fileCard.hidden = true;
-      elements.analyze.disabled = true;
+      updateAnalyzeAvailability();
       showMessage(error);
       return;
     }
@@ -133,7 +219,7 @@
     elements.fileSize.textContent = formatBytes(file.size);
     elements.fileType.textContent = fileExtension(file.name).toUpperCase();
     elements.fileCard.hidden = false;
-    elements.analyze.disabled = state.busy;
+    updateAnalyzeAvailability();
     showMessage("");
   }
 
@@ -142,13 +228,13 @@
     state.file = null;
     elements.fileInput.value = "";
     elements.fileCard.hidden = true;
-    elements.analyze.disabled = true;
+    updateAnalyzeAvailability();
     showMessage("");
   }
 
   function setBusy(busy) {
     state.busy = busy;
-    elements.analyze.disabled = busy || !state.file;
+    updateAnalyzeAvailability();
     elements.removeFile.disabled = busy;
     elements.fileInput.disabled = busy;
     elements.analyze.classList.toggle("loading", busy);
@@ -183,9 +269,20 @@
   }
 
   async function requestJson(url, options = {}) {
+    const requestOptions = { ...options };
+    const headers = new Headers(options.headers || {});
+    if (state.runtimeReady && state.runtime.accessRequired) {
+      if (!validAccessToken(state.accessToken)) {
+        throw new Error("Simpan kode akses pilot sebelum melanjutkan.");
+      }
+      headers.set("Authorization", `Bearer ${state.accessToken}`);
+      headers.set("X-SkripsiCheck-Session-ID", ensureSessionId());
+    }
+    requestOptions.headers = headers;
+
     let response;
     try {
-      response = await fetch(url, options);
+      response = await fetch(url, requestOptions);
     } catch (error) {
       throw new Error("Tidak dapat terhubung ke server SkripsiCheck.", { cause: error });
     }
@@ -197,8 +294,112 @@
     } else {
       payload = await response.text();
     }
-    if (!response.ok) throw new Error(extractError(payload, response.status));
+    if (!response.ok) {
+      if (response.status === 401 && state.runtime.accessRequired) {
+        throw new Error("Kode akses ditolak. Periksa kode, simpan kembali, lalu coba lagi.");
+      }
+      throw new Error(extractError(payload, response.status));
+    }
     return payload;
+  }
+
+  function saveAccessForSession() {
+    const token = elements.accessTokenInput.value.trim();
+    if (!validAccessToken(token)) {
+      showMessage("Kode akses harus berisi 32–512 karakter.");
+      return;
+    }
+    try {
+      ensureSessionId();
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "Sesi browser tidak dapat dibuat.");
+      return;
+    }
+    if (!writeSessionValue(ACCESS_TOKEN_STORAGE_KEY, token)) {
+      showMessage("Kode akses tidak dapat disimpan pada sesi browser ini.");
+      return;
+    }
+    state.accessToken = token;
+    updateAnalyzeAvailability();
+    showMessage("Kode akses disimpan hanya untuk tab browser ini.", "success");
+  }
+
+  async function initializeRuntime() {
+    try {
+      const runtime = await requestJson("/api/runtime", {
+        headers: { Accept: "application/json" },
+      });
+      const maxUploadMb = Number(runtime.max_upload_mb);
+      if (!Number.isSafeInteger(maxUploadMb) || maxUploadMb < 1 || maxUploadMb > 500) {
+        throw new Error("Konfigurasi batas upload dari server tidak valid.");
+      }
+      state.runtime = {
+        accessRequired: runtime.access_required === true,
+        directUpload: runtime.direct_upload === true,
+        maxFileBytes: maxUploadMb * 1024 * 1024,
+      };
+
+      elements.uploadLimitLabel.textContent = `PDF, DOCX, atau TXT · batas ${maxUploadMb} MB`;
+      if (state.runtime.directUpload) {
+        elements.uploadPrivacyCopy.textContent = "Dokumen dikirim langsung ke penyimpanan Blob privat SkripsiCheck.";
+      }
+
+      if (state.runtime.accessRequired) {
+        elements.accessPanel.hidden = false;
+        const storedToken = readSessionValue(ACCESS_TOKEN_STORAGE_KEY);
+        if (validAccessToken(storedToken)) {
+          state.accessToken = storedToken;
+          elements.accessTokenInput.value = storedToken;
+          ensureSessionId();
+        } else if (storedToken) {
+          removeSessionValue(ACCESS_TOKEN_STORAGE_KEY);
+        }
+      }
+
+      if (state.runtime.directUpload && !state.runtime.accessRequired) {
+        state.runtimeError = true;
+        throw new Error("Deployment direct upload belum memiliki proteksi akses yang diperlukan.");
+      }
+      state.runtimeReady = true;
+      updateAnalyzeAvailability();
+    } catch (error) {
+      state.runtimeError = true;
+      state.runtimeReady = true;
+      updateAnalyzeAvailability();
+      const message = error instanceof Error ? error.message : "Konfigurasi server tidak dapat dimuat.";
+      showMessage(message);
+      showToast(message, "error");
+    }
+  }
+
+  async function uploadSelectedDocument() {
+    if (!state.runtime.directUpload) {
+      const formData = new FormData();
+      formData.append("file", state.file, state.file.name);
+      return requestJson("/api/documents", {
+        method: "POST",
+        body: formData,
+        headers: { Accept: "application/json" },
+      });
+    }
+
+    const blobClient = window.SkripsiCheckBlob;
+    if (!blobClient || typeof blobClient.uploadPrivateDocument !== "function") {
+      throw new Error("Komponen upload privat gagal dimuat. Muat ulang halaman lalu coba lagi.");
+    }
+    const receipt = await blobClient.uploadPrivateDocument(state.file, {
+      accessToken: state.accessToken,
+      sessionId: ensureSessionId(),
+      maximumSizeBytes: state.runtime.maxFileBytes,
+    });
+    return requestJson("/api/documents/blob", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pathname: receipt.pathname,
+        filename: state.file.name,
+      }),
+    });
   }
 
   async function runAnalysis() {
@@ -216,13 +417,7 @@
     const previousDocumentId = state.documentId;
 
     try {
-      const formData = new FormData();
-      formData.append("file", state.file, state.file.name);
-      const uploaded = await requestJson("/api/documents", {
-        method: "POST",
-        body: formData,
-        headers: { Accept: "application/json" },
-      });
+      const uploaded = await uploadSelectedDocument();
       uploadedDocumentId = uploaded.id;
 
       updateStep("step-analyze");
@@ -698,6 +893,13 @@
     elements.exportJson.addEventListener("click", exportJson);
     elements.exportHtml.addEventListener("click", exportHtml);
     elements.deleteDocument.addEventListener("click", deleteCurrentDocument);
+    elements.saveAccess.addEventListener("click", saveAccessForSession);
+    elements.accessTokenInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveAccessForSession();
+      }
+    });
 
     byId("risk-filters").addEventListener("click", (event) => {
       const button = event.target.closest("[data-risk-filter]");
@@ -712,4 +914,5 @@
   }
 
   registerEvents();
+  void initializeRuntime();
 })();

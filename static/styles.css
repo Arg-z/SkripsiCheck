@@ -50,6 +50,17 @@ button { color: inherit; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 .skip-link {
   position: fixed;
   z-index: 1000;
@@ -184,6 +195,34 @@ main { width: min(1240px, calc(100% - 48px)); margin: 0 auto; }
 .icon-box-warm { background: var(--warm-light); }
 .icon-box svg { width: 24px; fill: none; stroke: var(--teal); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .icon-box-warm svg { stroke: var(--warm); }
+
+.access-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid #e2c98f;
+  border-radius: 12px;
+  background: var(--yellow-light);
+}
+.access-panel strong { font-size: .86rem; }
+.access-panel p { margin: 2px 0 0; color: var(--ink-soft); font-size: .76rem; }
+.access-panel small { color: var(--muted); font-size: .68rem; }
+.access-controls { display: flex; align-items: stretch; gap: 8px; }
+.access-controls input {
+  min-width: 0;
+  flex: 1;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.access-controls input:focus-visible {
+  outline: 3px solid rgba(13, 104, 97, .22);
+  outline-offset: 2px;
+  border-color: var(--teal);
+}
 
 .drop-zone {
   min-height: 265px;
@@ -419,6 +458,7 @@ footer a { color: var(--teal); font-weight: 700; text-underline-offset: 3px; }
   .section-heading > p { align-self: flex-start; }
   .panel { padding: 20px; border-radius: 18px; }
   .drop-zone { min-height: 235px; }
+  .access-controls { align-items: stretch; flex-direction: column; }
   .settings-grid { grid-template-columns: 1fr; gap: 12px; }
   .process-status ol { grid-template-columns: 1fr; gap: 12px; }
   .process-status li:not(:last-child)::after { top: 23px; bottom: -12px; left: 12px; width: 1px; height: auto; }

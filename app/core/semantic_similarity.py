@@ -59,11 +59,14 @@ class SemanticSimilarityService:
         self,
         *,
         model_name: str | None = None,
+        model_path: str | None = None,
         batch_size: int | None = None,
         device: str | None = None,
         model_factory: ModelFactory | None = None,
     ) -> None:
         self.model_name = SETTINGS.semantic_model if model_name is None else model_name
+        configured_path = getattr(SETTINGS, "semantic_model_path", None)
+        self.model_source = (configured_path if model_path is None else model_path) or self.model_name
         self.batch_size = (
             getattr(SETTINGS, "embedding_batch_size", 32)
             if batch_size is None
@@ -72,6 +75,8 @@ class SemanticSimilarityService:
         self.device = getattr(SETTINGS, "device", "cpu") if device is None else device
         if not self.model_name.strip():
             raise ValueError("Semantic model name cannot be empty.")
+        if not self.model_source.strip():
+            raise ValueError("Semantic model path cannot be empty.")
         if self.batch_size <= 0:
             raise ValueError("Embedding batch size must be positive.")
         if not self.device.strip():
@@ -90,7 +95,7 @@ class SemanticSimilarityService:
         if self._model is None:
             with self._model_lock:
                 if self._model is None:
-                    self._model = self._model_factory(self.model_name, self.device)
+                    self._model = self._model_factory(self.model_source, self.device)
         return self._model
 
     def _embedding_dimension(self) -> int:

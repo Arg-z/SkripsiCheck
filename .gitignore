@@ -10,8 +10,12 @@ htmlcov/
 .venv/
 venv/
 
+# JavaScript build dependencies
+node_modules/
+
 # Local configuration and generated data
 .env
+.vercel/
 data/
 # Explicitly document the generated FAISS index location.
 data/index/
@@ -32,6 +36,7 @@ tests/fixtures/generated/
 
 # Downloaded machine-learning models
 /models/
+deployment/model/
 .cache/
 
 # Editors and OS

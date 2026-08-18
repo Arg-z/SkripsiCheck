@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -14,6 +13,11 @@ from app.core.chunker import split_paragraphs
 from app.core.cleaner import clean_text
 from app.core.extractor import DocumentExtractionError, extract_text
 from app.database.repository import AnalysisRecord, Repository
+from app.services.document_storage import (
+    DocumentStorage,
+    StorageUnavailableError,
+    UploadStorageError,
+)
 from app.services.similarity_engine import CandidateRetriever, ScoredMatch, analyze_paragraph
 
 DISCLAIMER = (
@@ -35,33 +39,70 @@ class EmptyDocumentError(AnalysisServiceError):
     pass
 
 
+class AnalysisStorageUnavailableError(AnalysisServiceError):
+    pass
+
+
+class AnalysisLimitExceededError(AnalysisServiceError):
+    pass
+
+
 class AnalysisService:
     def __init__(
         self,
         repository: Repository,
         retriever_factory: Callable[[], CandidateRetriever],
+        storage: DocumentStorage,
+        *,
+        max_characters: int = SETTINGS.max_analysis_characters,
+        max_paragraphs: int = SETTINGS.max_analysis_paragraphs,
     ) -> None:
+        if max_characters <= 0 or max_paragraphs <= 0:
+            raise ValueError("Analysis limits must be positive.")
         self.repository = repository
         self.retriever_factory = retriever_factory
+        self.storage = storage
+        self.max_characters = max_characters
+        self.max_paragraphs = max_paragraphs
 
     def analyze(
         self,
         document_id: str,
         *,
+        owner_session_id: str = "local",
         top_k: int | None = None,
         min_score: float | None = None,
     ) -> AnalysisRecord:
-        document = self.repository.get_document(document_id)
+        document = self.repository.get_document(document_id, owner_session_id)
         if document is None:
-            raise DocumentNotFoundError(f"Document {document_id} was not found.")
+            raise DocumentNotFoundError("Document not found.")
         try:
-            paragraphs = split_paragraphs(
-                clean_text(extract_text(Path(document.stored_path)))
-            )
-        except DocumentExtractionError as exc:
+            with self.storage.materialize_for_analysis(
+                document.stored_path,
+                expected_extension=document.extension,
+                expected_media_type=document.media_type,
+                expected_size=document.size_bytes,
+            ) as local_path:
+                cleaned_text = clean_text(extract_text(local_path))
+        except StorageUnavailableError as exc:
+            raise AnalysisStorageUnavailableError(
+                "Document storage is temporarily unavailable."
+            ) from exc
+        except (DocumentExtractionError, UploadStorageError) as exc:
             raise AnalysisServiceError(f"Could not read the stored document: {exc}") from exc
+        if len(cleaned_text) > self.max_characters:
+            raise AnalysisLimitExceededError(
+                "The extracted document is too large to analyze safely "
+                f"(maximum {self.max_characters:,} characters)."
+            )
+        paragraphs = split_paragraphs(cleaned_text)
         if not paragraphs:
             raise EmptyDocumentError("The document produced zero text paragraphs.")
+        if len(paragraphs) > self.max_paragraphs:
+            raise AnalysisLimitExceededError(
+                "The document contains too many paragraphs to analyze safely "
+                f"(maximum {self.max_paragraphs:,})."
+            )
 
         retriever = self.retriever_factory()
         paragraph_payloads: list[dict[str, Any]] = []

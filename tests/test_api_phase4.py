@@ -59,6 +59,22 @@ def test_health_and_security_headers(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "version": "0.1.0", "phase": 5}
     assert response.headers["x-content-type-options"] == "nosniff"
+    policy = response.headers["content-security-policy"]
+    assert "script-src 'self'" in policy
+    assert "script-src-attr 'none'" in policy
+    assert "frame-ancestors 'none'" in policy
+    assert "https://blob.vercel-storage.com" in policy
+    assert "https://*.blob.vercel-storage.com" in policy
+    assert "'unsafe-inline'" not in policy
+
+    home = client.get("/")
+    assert home.headers["content-security-policy"] == policy
+
+    # FastAPI's built-in documentation currently uses an inline bootstrap
+    # script, so applying the application CSP here would render it blank.
+    docs = client.get("/docs")
+    assert docs.status_code == 200
+    assert "content-security-policy" not in docs.headers
 
 
 def test_upload_sanitizes_filename_and_persists_metadata(client: TestClient) -> None:
@@ -109,6 +125,52 @@ def test_upload_limit_is_enforced_while_streaming(tmp_path: Path) -> None:
         )
     assert response.status_code == 413
     assert not list((tmp_path / "uploads").iterdir())
+
+
+@pytest.mark.parametrize(
+    ("settings", "text", "expected_detail"),
+    [
+        (
+            Settings(max_analysis_characters=30),
+            "Dokumen penelitian ini menghasilkan teks yang melampaui batas aman.",
+            "characters",
+        ),
+        (
+            Settings(max_analysis_paragraphs=1),
+            "Paragraf penelitian pertama.\n\nParagraf penelitian kedua.",
+            "paragraphs",
+        ),
+    ],
+)
+def test_analysis_limits_fail_fast_before_semantic_retrieval(
+    tmp_path: Path,
+    settings: Settings,
+    text: str,
+    expected_detail: str,
+) -> None:
+    retriever_calls = 0
+
+    class CountingRetriever(FakeRetriever):
+        def search(self, query: str, top_k: int) -> list[RetrievedCandidate]:
+            nonlocal retriever_calls
+            retriever_calls += 1
+            return super().search(query, top_k)
+
+    application = create_app(
+        settings=settings,
+        database_url=f"sqlite:///{(tmp_path / 'limits.sqlite3').as_posix()}",
+        upload_dir=tmp_path / "uploads",
+        retriever_factory=CountingRetriever,
+    )
+    with TestClient(application) as test_client:
+        uploaded = upload_txt(test_client, text)
+        response = test_client.post(
+            "/api/analyses", json={"document_id": uploaded["id"]}
+        )
+
+    assert response.status_code == 413
+    assert expected_detail in response.json()["detail"]
+    assert retriever_calls == 0
 
 
 def test_analysis_and_persisted_report(client: TestClient) -> None:

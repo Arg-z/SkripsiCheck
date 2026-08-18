@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "fluid": true,
+  "regions": ["sin1"],
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 300,
+      "includeFiles": "{app/templates/**,static/**,deployment/model/**}",
+      "excludeFiles": "{.git/**,.venv/**,.pytest_cache/**,**/__pycache__/**,**/*.pyc,tests/**,scripts/**,sample_documents/**,data/**,requirements-phase*.txt,requirements-dev.txt,pytest.ini}"
+    }
+  }
+}

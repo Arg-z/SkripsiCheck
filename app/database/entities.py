@@ -20,6 +20,9 @@ class DocumentEntity(Base):
     __tablename__ = "documents"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    owner_session_id: Mapped[str] = mapped_column(
+        String(36), nullable=False, index=True, server_default="local"
+    )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     stored_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     media_type: Mapped[str] = mapped_column(String(127), nullable=False)
@@ -44,4 +47,3 @@ class AnalysisEntity(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
-

@@ -1,13 +1,16 @@
 # SkripsiCheck
 
 SkripsiCheck adalah proyek open-source untuk membantu mahasiswa meninjau
-kemiripan teks terhadap koleksi sumber milik sendiri. Seluruh ekstraksi,
-embedding, indexing, dan pencarian dilakukan lokal tanpa API berbayar dan tanpa
-mengunggah dokumen pengguna ke layanan eksternal.
+kemiripan teks terhadap koleksi sumber milik sendiri. Pada instalasi lokal,
+seluruh ekstraksi, embedding, indexing, dan pencarian dilakukan di komputer
+sendiri tanpa API analisis berbayar dan tanpa mengunggah dokumen ke layanan
+eksternal.
 
-> **Status:** pengembangan v0.1.0 — PHASE 1 sampai PHASE 5 selesai.
-> FastAPI, upload/analysis API, report JSON, SQLite lokal, dan antarmuka web
-> tersedia. Storage production untuk deployment serverless belum tersedia.
+> **Status:** pengembangan v0.1.0 — PHASE 1 sampai PHASE 5 selesai dan stabil
+> untuk penggunaan lokal. Adapter deployment Vercel (Private Blob, Neon
+> PostgreSQL, dan cache FAISS) masih berstatus **protected pilot** dan belum
+> boleh dianggap siap untuk peluncuran publik sebelum checklist verifikasi
+> deployment selesai.
 
 ## Screenshot
 
@@ -35,6 +38,11 @@ rilis publik v0.1.0._
 - antarmuka web responsif untuk upload, analisis, dan report;
 - filter risiko, highlight overlap, top sources, serta penjelasan bobot; dan
 - export report HTML/JSON langsung dari browser.
+
+Adapter deployment eksperimental juga tersedia untuk direct upload ke Vercel
+Private Blob, metadata/report di PostgreSQL (misalnya Neon), serta pembacaan
+artifact FAISS dari Private Blob. Mode ini berbeda dari mode lokal dan harus
+mengikuti [panduan protected pilot](docs/deploy-vercel.md).
 
 ## Installation
 
@@ -234,10 +242,11 @@ batas ukuran. Nama file untuk storage dibuat dari UUID sehingga input pengguna
 tidak pernah menjadi path filesystem. Pengelolaan sumber melalui web belum
 tersedia; gunakan CLI `skripsicheck index` atau `rebuild-index`.
 
-> **Peringatan deployment:** mode saat ini memakai file lokal dan SQLite serta
-> belum memiliki authentication, ownership, rate limiting, atau retention
-> otomatis. Jangan mengekspos endpoint ini langsung ke internet sebelum storage
-> persisten dan deployment hardening selesai.
+Mode lokal memakai filesystem dan SQLite. Mode Vercel harus memakai Private Blob
+dan PostgreSQL persisten; filesystem function Vercel bersifat sementara. Hosted
+pilot memiliki shared access token dan pemisahan resource berdasarkan session
+browser, tetapi belum memiliki akun pengguna, rate limiting, kuota, maupun
+retention otomatis. Karena itu jangan membuka deployment kepada publik umum.
 
 ## Configuration
 
@@ -255,6 +264,28 @@ SKRIPSICHECK_DATABASE_URL=sqlite:///data/skripsicheck.sqlite3
 ```
 
 CPU adalah default dan GPU/CUDA tidak diwajibkan.
+
+Konfigurasi deployment tidak sama dengan konfigurasi lokal. Nama environment
+variable, nilai yang wajib, dan urutan setup Vercel dijelaskan di
+[docs/deploy-vercel.md](docs/deploy-vercel.md). Jangan menaruh token Blob,
+connection string database, atau access token di `.env.example`, Git, log,
+screenshot, maupun percakapan.
+
+## Deployment ke Vercel (Protected Pilot)
+
+Arsitektur deployment yang sedang diverifikasi menggunakan:
+
+- Vercel Private Blob untuk dokumen dan tiga artifact index FAISS;
+- Neon PostgreSQL untuk metadata dokumen dan similarity report;
+- direct browser upload agar file tidak melewati batas request-body Function;
+- model multilingual yang diunduh pada build dari revision yang dipin; dan
+- shared access token untuk pilot kecil, bukan autentikasi pengguna penuh.
+
+Mulai dari [panduan deployment Vercel](docs/deploy-vercel.md). Panduan tersebut
+mencakup penyiapan Blob/Neon, environment variables, upload artifact FAISS,
+Preview deployment terlindungi, smoke test, batas resource, serta checklist
+sebelum Production. **Jangan menganggap deployment siap publik hanya karena
+halaman utama atau `/docs` berhasil terbuka.**
 
 ## Testing
 
@@ -284,17 +315,22 @@ pytest -m slow
 
 - Saat dijalankan lokal, dokumen, teks, embedding, metadata, dan FAISS index
   tetap di komputer yang menjalankan SkripsiCheck.
-- SkripsiCheck tidak memakai API atau layanan analisis eksternal.
-- Koneksi internet hanya diperlukan untuk mengunduh paket/model pertama kali.
+- Mode lokal tidak memakai API atau layanan analisis eksternal. Koneksi internet
+  hanya diperlukan untuk mengunduh dependency/model pertama kali.
 - Folder data, uploads, reports, indexes, database, model, dan cache diabaikan Git.
-- Upload lokal disimpan sampai endpoint delete dipanggil; deployment production
-  nantinya akan memakai retensi dan penghapusan otomatis.
+- Upload lokal disimpan sampai endpoint delete dipanggil.
 - Jangan commit dokumen mahasiswa atau sumber berlisensi tanpa izin.
 
-Jika SkripsiCheck di-host, dokumen tentu dikirim ke server hosting milik operator
-aplikasi. Operator wajib menjelaskan lokasi penyimpanan, masa retensi, akses,
-dan kebijakan penghapusan kepada pengguna. Klaim "tetap lokal" hanya berlaku
-untuk instalasi lokal, bukan deployment internet.
+Jika SkripsiCheck di-host di Vercel, dokumen dikirim langsung dari browser ke
+Private Blob, diproses oleh Function, dan metadata/report disimpan di PostgreSQL.
+Embedding dan pencarian tetap dijalankan oleh aplikasi tanpa API analisis
+berbayar, tetapi datanya **tidak lagi hanya berada di laptop pengguna**. Private
+Blob berarti objek tidak publik, bukan berarti operator hosting tidak memproses
+data. Report database juga memuat paragraf yang dianalisis dan matched source
+text. Retention otomatis belum tersedia: operator pilot harus menghapus data
+melalui aplikasi dan melakukan audit berkala pada Blob/database. Jelaskan lokasi
+hosting, masa simpan, siapa yang memiliki access token, serta prosedur
+penghapusan kepada setiap pengguna sebelum menerima dokumen mereka.
 
 ## Limitations
 

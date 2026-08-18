@@ -15,6 +15,12 @@ class HealthResponse(BaseModel):
     phase: int
 
 
+class RuntimeResponse(BaseModel):
+    access_required: bool
+    direct_upload: bool
+    max_upload_mb: int = Field(gt=0)
+
+
 class DocumentResponse(BaseModel):
     id: UUID
     filename: str
@@ -22,6 +28,11 @@ class DocumentResponse(BaseModel):
     extension: str
     size_bytes: int
     created_at: datetime
+
+
+class BlobDocumentFinalizeRequest(BaseModel):
+    pathname: str = Field(min_length=1, max_length=512)
+    filename: str = Field(min_length=1, max_length=255)
 
 
 class AnalysisRequest(BaseModel):
@@ -78,4 +89,3 @@ class ReportResponse(BaseModel):
     methodology: dict[str, Any]
     disclaimer: str
     created_at: datetime
-

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Protocol, runtime_checkable
 from uuid import uuid4
 
 from fastapi import UploadFile
@@ -29,6 +32,10 @@ class UploadTooLargeError(UploadStorageError):
     """Raised as soon as a streaming upload exceeds the configured limit."""
 
 
+class StorageUnavailableError(UploadStorageError):
+    """Raised when a configured storage service cannot complete an operation."""
+
+
 @dataclass(frozen=True, slots=True)
 class StoredDocument:
     document_id: str
@@ -37,6 +44,31 @@ class StoredDocument:
     media_type: str
     extension: str
     size_bytes: int
+
+
+class DocumentStorage(Protocol):
+    """Storage operations required after a document has been persisted."""
+
+    def delete(self, stored_path: str | Path) -> bool: ...
+
+    def materialize_for_analysis(
+        self,
+        stored_path: str | Path,
+        *,
+        expected_extension: str | None = None,
+        expected_media_type: str | None = None,
+        expected_size: int | None = None,
+        validate_document: bool = False,
+    ) -> Iterator[Path]: ...
+
+    def close(self) -> None: ...
+
+
+@runtime_checkable
+class UploadDocumentStorage(DocumentStorage, Protocol):
+    """Storage backend that accepts multipart uploads through FastAPI."""
+
+    async def save(self, upload: UploadFile) -> StoredDocument: ...
 
 
 def sanitize_filename(filename: str | None) -> str:
@@ -117,3 +149,39 @@ class LocalDocumentStorage:
         candidate.unlink()
         return True
 
+    @contextmanager
+    def materialize_for_analysis(
+        self,
+        stored_path: str | Path,
+        *,
+        expected_extension: str | None = None,
+        expected_media_type: str | None = None,
+        expected_size: int | None = None,
+        validate_document: bool = False,
+    ) -> Iterator[Path]:
+        """Yield a validated local upload through the shared storage boundary."""
+
+        del expected_media_type
+        candidate = Path(stored_path).resolve()
+        root = self.root.resolve()
+        if candidate.parent != root:
+            raise UploadStorageError("Refusing to read a file outside upload storage.")
+        if not candidate.is_file():
+            raise UploadStorageError("The stored document no longer exists.")
+        if expected_extension is not None and candidate.suffix.lower() != expected_extension:
+            raise UploadStorageError("Stored document extension does not match its metadata.")
+        if expected_size is not None and candidate.stat().st_size != expected_size:
+            raise UploadStorageError("Stored document size does not match its metadata.")
+        if validate_document:
+            try:
+                extract_text(candidate, max_size_mb=self.max_bytes // (1024 * 1024))
+            except DocumentExtractionError as exc:
+                raise UploadStorageError(
+                    f"The stored document is invalid: {exc}"
+                ) from exc
+        yield candidate
+
+    def close(self) -> None:
+        """Local storage owns no persistent transport."""
+
+        return None

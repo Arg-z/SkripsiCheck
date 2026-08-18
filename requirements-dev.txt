@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Local ASGI server and test tooling; excluded from the Vercel function bundle.
+uvicorn[standard]>=0.30,<1
+pytest>=8,<10
+httpx>=0.27,<1

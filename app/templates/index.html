@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="SkripsiCheck membantu mahasiswa meninjau kemiripan teks secara lokal dan transparan.">
   <meta name="color-scheme" content="light">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://blob.vercel-storage.com https://*.blob.vercel-storage.com; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>SkripsiCheck — Pemeriksa Kemiripan Teks</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/blob-client.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -64,7 +65,7 @@
           <p class="section-number">01 / MULAI</p>
           <h2 id="workspace-title">Periksa dokumen</h2>
         </div>
-        <p>PDF, DOCX, atau TXT · batas server default 25 MB</p>
+        <p id="upload-limit-label">PDF, DOCX, atau TXT · batas server default 25 MB</p>
       </div>
 
       <div class="workspace-grid">
@@ -79,6 +80,19 @@
             </div>
           </div>
 
+          <div class="access-panel" id="access-panel" hidden>
+            <div>
+              <strong>Kode akses pilot</strong>
+              <p>Masukkan kode yang diberikan pengelola SkripsiCheck.</p>
+            </div>
+            <div class="access-controls">
+              <label class="visually-hidden" for="access-token-input">Kode akses pilot</label>
+              <input id="access-token-input" type="password" autocomplete="current-password" minlength="32" maxlength="512" placeholder="Kode akses">
+              <button class="button button-secondary button-small" id="save-access-button" type="button">Simpan untuk sesi ini</button>
+            </div>
+            <small>Kode hanya disimpan pada tab browser ini dan tidak dimasukkan ke report.</small>
+          </div>
+
           <label class="drop-zone" id="drop-zone" for="file-input">
             <input id="file-input" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
             <span class="drop-icon" aria-hidden="true">
@@ -86,7 +100,7 @@
             </span>
             <strong>Tarik dokumen ke sini</strong>
             <span>atau <u>pilih dari perangkat</u></span>
-            <small>Dokumen tetap berada di server SkripsiCheck yang Anda jalankan.</small>
+            <small id="upload-privacy-copy">Dokumen tetap berada di server SkripsiCheck yang Anda jalankan.</small>
           </label>
 
           <div class="file-card" id="file-card" hidden>

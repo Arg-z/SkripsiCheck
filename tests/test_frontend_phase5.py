@@ -39,7 +39,10 @@ def test_homepage_exposes_primary_student_workflow(web_client: TestClient) -> No
     ):
         assert f'id="{control_id}"' in response.text
     assert 'href="/static/styles.css"' in response.text
+    assert 'src="/static/blob-client.js"' in response.text
     assert 'src="/static/app.js"' in response.text
+    assert 'id="access-panel"' in response.text
+    assert "https://*.blob.vercel-storage.com" in response.text
 
 
 @pytest.mark.parametrize(
@@ -47,6 +50,7 @@ def test_homepage_exposes_primary_student_workflow(web_client: TestClient) -> No
     [
         ("/static/styles.css", "text/css"),
         ("/static/app.js", "javascript"),
+        ("/static/blob-client.js", "javascript"),
     ],
 )
 def test_primary_static_assets_are_served(
@@ -91,3 +95,18 @@ def test_frontend_renders_untrusted_api_data_without_inner_html(
         assert unsafe_sink not in javascript
     assert "textContent" in javascript
     assert "createElement" in javascript
+
+
+def test_frontend_supports_runtime_access_and_direct_blob_upload(
+    web_client: TestClient,
+) -> None:
+    javascript = web_client.get("/static/app.js").text
+
+    assert 'requestJson("/api/runtime"' in javascript
+    assert "window.sessionStorage" in javascript
+    assert "window.localStorage" not in javascript
+    assert 'headers.set("Authorization", `Bearer ${state.accessToken}`)' in javascript
+    assert 'headers.set("X-SkripsiCheck-Session-ID", ensureSessionId())' in javascript
+    assert "blobClient.uploadPrivateDocument" in javascript
+    assert 'requestJson("/api/documents/blob"' in javascript
+    assert 'requestJson("/api/documents"' in javascript

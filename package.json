@@ -1,0 +1,19 @@
+{
+  "name": "skripsicheck-browser-upload",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:blob-client": "esbuild frontend/blob-client.js --bundle --format=iife --global-name=SkripsiCheckBlob --minify --drop:console --legal-comments=eof --banner:js=\"/*! Third-party notices: /static/THIRD_PARTY_NOTICES.txt */\" --outfile=static/blob-client.js",
+    "test:node": "node --test tests-node/*.test.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.6.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
