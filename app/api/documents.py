@@ -13,6 +13,7 @@ from app.database.repository import DocumentRecord
 from app.models.schemas import BlobDocumentFinalizeRequest, DocumentResponse
 from app.services.container import AppContainer
 from app.services.document_storage import (
+    DocumentStorage,
     UploadDocumentStorage,
     StorageUnavailableError,
     UploadStorageError,
@@ -47,12 +48,12 @@ def _same_blob_document(record: DocumentRecord, stored: StoredBlobDocument) -> b
     )
 
 
-def _delete_blob_quietly(storage: VercelBlobDocumentStorage, pathname: str) -> None:
+def _delete_stored_quietly(storage: DocumentStorage, stored_path: str | Path) -> None:
     """Best-effort cleanup without hiding the primary database failure."""
 
     try:
-        storage.delete(pathname)
-    except UploadStorageError:
+        storage.delete(stored_path)
+    except (UploadStorageError, OSError):
         return
 
 
@@ -88,7 +89,7 @@ async def upload_document(
             owner_session_id=owner_session_id,
         )
     except Exception:
-        container.storage.delete(stored.stored_path)
+        _delete_stored_quietly(container.storage, stored.stored_path)
         raise
     return _response(record)
 
@@ -158,13 +159,13 @@ def finalize_blob_document(
         )
         if existing is not None and _same_blob_document(existing, stored):
             return _response(existing)
-        _delete_blob_quietly(container.storage, stored.stored_path)
+        _delete_stored_quietly(container.storage, stored.stored_path)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Document identifier is already in use.",
         ) from exc
     except Exception:
-        _delete_blob_quietly(container.storage, stored.stored_path)
+        _delete_stored_quietly(container.storage, stored.stored_path)
         raise
     return _response(record)
 

@@ -6,8 +6,13 @@ import re
 import unicodedata
 from collections import Counter
 
+# A strict roman numeral grammar: ordinary words that only contain roman
+# letters ("did", "dim", "civil", "lid") must not match as page numbers.
+ROMAN_NUMERAL = (
+    r"(?=[ivxlcdm])(?:m{0,4}(?:cm|cd|d?c{0,3}))?(?:xc|xl|l?x{0,3})?(?:ix|iv|v?i{0,3})"
+)
 PAGE_NUMBER_RE = re.compile(
-    r"^\s*(?:page|halaman)?\s*[-–—]?\s*(?:\d+|[ivxlcdm]+)\s*[-–—]?\s*$",
+    r"^\s*(?:page|halaman)?\s*[-–—]?\s*(?:\d+|" + ROMAN_NUMERAL + r")\s*[-–—]?\s*$",
     flags=re.IGNORECASE,
 )
 HORIZONTAL_SPACE_RE = re.compile(r"[^\S\r\n\f]+")
